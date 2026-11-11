@@ -3,15 +3,15 @@ name: Poll Easee
 on:
   workflow_dispatch:
   schedule:
-    # Backup trigger every 20 min in case the self-retrigger chain breaks.
     - cron: "*/20 * * * *"
 
 permissions:
-  contents: write   # needed to commit the CSV back to the repo
+  contents: write
+  actions: write   # needed for gh workflow run
 
 concurrency:
   group: easee-poller
-  cancel-in-progress: false   # don't kill a running poller when the next fires
+  cancel-in-progress: false
 
 jobs:
   poll:
