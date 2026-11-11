@@ -35,7 +35,7 @@ jobs:
           EASEE_USERNAME: ${{ secrets.EASEE_USERNAME }}
           EASEE_PASSWORD: ${{ secrets.EASEE_PASSWORD }}
           RUN_SECONDS: "840"
-        run: python - u poller.py
+        run: python -u poller.py
 
       - name: Commit CSV
         if: always()
