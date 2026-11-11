@@ -1,1 +1,58 @@
+name: Poll Easee
 
+on:
+  workflow_dispatch:
+  schedule:
+    # Backup trigger every 20 min in case the self-retrigger chain breaks.
+    - cron: "*/20 * * * *"
+
+permissions:
+  contents: write   # needed to commit the CSV back to the repo
+
+concurrency:
+  group: easee-poller
+  cancel-in-progress: false   # don't kill a running poller when the next fires
+
+jobs:
+  poll:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install deps
+        run: pip install requests
+
+      - name: Run poller
+        env:
+          EASEE_USERNAME: ${{ secrets.EASEE_USERNAME }}
+          EASEE_PASSWORD: ${{ secrets.EASEE_PASSWORD }}
+          RUN_SECONDS: "840"
+        run: python poller.py
+
+      - name: Commit CSV
+        if: always()
+        run: |
+          git config user.name  "easee-bot"
+          git config user.email "easee-bot@users.noreply.github.com"
+          git add easee_log.csv
+          git diff --cached --quiet || git commit -m "log $(date -u +%FT%TZ)"
+          for i in 1 2 3; do
+            git pull --rebase --autostash && git push && break
+            sleep 5
+          done
+
+      - name: Trigger next run
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          sleep 2
+          gh workflow run poll.yml
