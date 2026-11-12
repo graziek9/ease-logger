@@ -13,7 +13,7 @@ BASE_URL = "https://api.easee.com"
 LOGIN_URL = f"{BASE_URL}/api/accounts/login"
 CHARGERS_URL = f"{BASE_URL}/api/chargers"
 
-REFRESH_SECONDS = 10
+REFRESH_SECONDS = 60
 # Default 14 minutes; leaves a buffer before the 15-minute workflow timeout.
 RUN_SECONDS = int(os.environ.get("RUN_SECONDS", "840"))
 
