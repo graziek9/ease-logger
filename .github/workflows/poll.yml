@@ -3,10 +3,7 @@ name: Poll Easee
 on:
   workflow_dispatch:
   schedule:
-    # Daytime safety net: every 5 min (UTC 07:00–18:55)
-    - cron: "*/5 7-18 * * *"
-    # Nighttime: hourly at :23 (UTC 19:00–06:59)
-    - cron: "23 19-23,0-6 * * *"
+    - cron: "*/15 * * * *"
 
 permissions:
   contents: write
@@ -19,7 +16,7 @@ concurrency:
 jobs:
   poll:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
 
     steps:
       - uses: actions/checkout@v4
@@ -35,7 +32,7 @@ jobs:
         env:
           EASEE_USERNAME: ${{ secrets.EASEE_USERNAME }}
           EASEE_PASSWORD: ${{ secrets.EASEE_PASSWORD }}
-          RUN_SECONDS: "240"   # 4 min; daytime cron/chain handles the 5-min cadence
+          RUN_SECONDS: "840"   # 14 min; leaves a buffer before the 15-min timeout
         run: python -u poller.py
 
       - name: Commit CSV
@@ -52,14 +49,9 @@ jobs:
           echo "push failed after 3 attempts" >&2
           exit 1
 
-      - name: Trigger next run (daytime only)
+      - name: Trigger next run
         if: always()
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          HOUR=$(date -u +%H)
-          if [ "$HOUR" -ge 7 ] && [ "$HOUR" -lt 19 ]; then
-            gh workflow run poll.yml
-          else
-            echo "Nighttime — cron will trigger the next run at :23"
-          fi
+          gh workflow run poll.yml
