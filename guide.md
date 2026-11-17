@@ -68,4 +68,46 @@ The `<mode>` values depend on your `MODES` list (default: all five):
 
 ## Quick example reading a row
 
-Take a hypothetical row where:
+Take a hypothetical row where: 
+surplus_kw = 5.0 (5 kW solar spare)
+surplus_ema_kw = 4.5 (smoothed down from the 5 kW)
+
+Then:
+
+- `surplus_amps` = 7.25 A (raw amps before clipping)
+- `surplus_amps_clipped` = 7.25 A (within 6–16)
+- `surplus_ema_amps` = 6.52 A
+- Controller computes `usable_kw = 4.5 − 0.2 = 4.3 kW`, so `usable_amps ≈ 6.23 A`
+- `solar_only` mode: target = `floor(6.23)` = 6 A, so `cmd_a_solar_only = 6` (or higher if already ramping)
+- `cmd_kw_solar_only` = `6 × 690 / 1000 = 4.14 kW`
+- `grid_part_kw` = `max(0, 4.14 − 5.0) = 0` (all solar)
+- `solar_part_kw` = `4.14 − 0 = 4.14` (all solar)
+
+Result: the car charges at 4.14 kW, entirely from solar. The surplus is being fully consumed.
+
+---
+
+## Column count sanity check
+
+| Group | Count |
+|---|---|
+| Original | 9 |
+| Surplus | 5 (`surplus_kw`, `surplus_amps`, `surplus_amps_clipped`, `surplus_ema_kw`, `surplus_ema_amps`) |
+| Per-mode (5 modes × 3) | 15 |
+| Default convenience | 5 (`cmd_a_default`, `cmd_kw_default`, `car_charging`, `grid_part_kw`, `solar_part_kw`) |
+| **Total** | **34** |
+
+If `MODES` is shortened, drop 3 columns per removed mode. If you add a mode, add 3 more.
+
+---
+
+## How to sum / filter in analysis
+
+```python
+# Total energy delivered per mode
+for mode in ["solar_only", "min_solar", "fast", "cheap_tariff", "deadline"]:
+    print(mode, df[f"kwh_{mode}"].sum())
+
+# Total solar vs grid energy (default mode)
+print("solar kWh:", (df.solar_part_kw * df.dt_s / 3600).sum() if "dt_s" in df else None)
+print("grid  kWh:", (df.grid_part_kw  * df.dt_s / 3600).sum() if "dt_s" in df else None)
